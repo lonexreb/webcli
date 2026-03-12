@@ -45,10 +45,41 @@ src/webcli/
 - SQLite for local storage (no server deps)
 - ruff for linting
 
+## Testing
+
+```bash
+pytest                    # 65 unit/integration tests (no network)
+pytest -m live            # 6 live tests (hits jsonplaceholder + httpbin)
+pytest -v                 # Verbose output
+```
+
+**Test files:**
+- `test_models.py` — Pydantic model validation (8 tests)
+- `test_registry.py` — SQLite registry CRUD (10 tests)
+- `test_analyzer.py` — Traffic analysis & grouping (12 tests)
+- `test_spec_generator.py` — OpenAPI spec generation (6 tests)
+- `test_client_generator.py` — Python client code gen (4 tests)
+- `test_cli.py` — CLI commands via CliRunner (5 tests)
+- `test_integration_pipeline.py` — Full pipeline with mock data (11 tests)
+- `test_integration_live.py` — Live API tests, marked `@pytest.mark.live` (6 tests)
+- `test_tier_promotion.py` — Tier fallback & auto-promotion (9 tests)
+
+**Total: 71 tests, all passing.**
+
+## Optional Dependencies
+
+Heavy deps are optional to keep base install lightweight:
+- `webcli[browser]` — Playwright, browser-cookie3
+- `webcli[llm]` — Anthropic SDK
+- `webcli[mcp]` — MCP Python SDK
+- `webcli[all]` — Everything
+- `webcli[dev]` — All + pytest, ruff, mypy
+
 ## Key Docs
 
 - `PLAN.md` — Full architecture plan, research bible, implementation phases
 - `RESEARCH-EXPERIMENT.md` — Experiment records, findings, learnings & mistakes
+- `RESEARCH-DEEP-DIVE.md` — Market analysis (Perplexity, WebMCP, competitive landscape)
 - `CLAUDE.md` — This file; conventions and project structure
 
 ## Running

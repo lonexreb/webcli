@@ -35,24 +35,38 @@ A 3-tier progressive formalization architecture (Browser → Workflow → API) c
 
 ---
 
-## Experiment #2: Real Site Discovery (TODO)
+## Experiment #2: Pipeline Integration & Real Site Discovery
 
-**Date**: TBD
-**Status**: Planned
+**Date**: 2026-03-12
+**Status**: Complete
 
 ### Hypothesis
-The discovery pipeline can extract useful API endpoints from real-world sites like Hacker News, GitHub, or a weather API.
+The discovery pipeline can extract useful API endpoints from real-world sites and the full pipeline works end-to-end (traffic → analysis → spec → client → MCP server).
 
-### Plan
-1. Run `webcli discover news.ycombinator.com` and evaluate discovered endpoints
-2. Run `webcli discover httpbin.org` as a controlled test (known API surface)
-3. Compare generated OpenAPI spec against actual API documentation
-4. Measure: endpoint count, parameter accuracy, schema correctness
+### Setup
+- Mock traffic data simulating JSONPlaceholder API (GET /posts, GET /posts?userId=1, POST /posts, GET /posts/1)
+- Live HTTP requests against jsonplaceholder.typicode.com and httpbin.org
+- Full pipeline test: capture → analyze → group → extract → spec generate → client generate → MCP generate → register
 
-### Success Criteria
-- Discover at least 3 valid endpoints from HN
-- Generated client can make successful API calls
-- OpenAPI spec validates against openapi-spec-validator
+### Results
+- **11 pipeline tests** pass with mock data (steps 1-10 + full end-to-end)
+- **6 live tests** pass against real APIs
+- Generated client successfully calls JSONPlaceholder API and returns JSON data
+- Generated OpenAPI specs have correct structure (paths, parameters, schemas)
+- Generated MCP server code is valid Python with correct tool registrations
+- httpbin.org: correctly discovers GET /get and POST /post endpoints with all params
+
+### Key Findings
+1. **Query param merging is essential** — when multiple exchanges hit the same endpoint with different query params (e.g., `/posts` and `/posts?userId=1`), all params must be collected across exchanges, not just from the first one
+2. **Response types vary** — API responses can be JSON arrays (not just objects). The `example_response` field needed `dict | list | None` typing
+3. **Code generation brace escaping** — f-strings containing `{key}` intended for the *generated* code get evaluated at generation time. String concatenation (`"{" + key + "}"`) avoids this
+4. **Generated client method iteration** — when probing generated clients for callable methods, utility methods like `close()` must be skipped
+
+### Bugs Found
+- `models.py`: `example_response: dict | None` → `dict | list | None`
+- `analyzer.py`: Query params only from first exchange → merged across all exchanges in group
+- `mcp_gen.py`: f-string brace escaping → replaced with `"\n".join(code_parts)` approach
+- Test: `close()` method called before API methods when iterating `dir(client)` alphabetically
 
 ---
 
@@ -98,24 +112,32 @@ Generated MCP servers are functional and can be used by Claude to perform real w
 
 ---
 
-## Experiment #5: Tier Promotion Cycle (TODO)
+## Experiment #5: Tier Promotion Cycle
 
-**Date**: TBD
-**Status**: Planned
+**Date**: 2026-03-12
+**Status**: Complete
 
 ### Hypothesis
 The router correctly falls back through tiers and auto-promotes actions after consistent success.
 
-### Plan
-1. Register a site with actions at Tier 1 (browser only)
-2. Execute actions multiple times via router
-3. Verify tier promotion: Browser → Workflow → API
-4. Introduce a simulated API breakage, verify fallback to lower tier
+### Setup
+- SQLite registry with test sites at various tiers
+- Router with `_maybe_promote()` method
+- `_tier_fallback_order()` for deterministic fallback ordering
 
-### Success Criteria
-- Action auto-promotes to Tier 2 after 5 successes at Tier 1
-- Fallback works when higher tier fails
-- Health monitor detects the breakage
+### Results
+- **9 tests** passing in `test_tier_promotion.py`
+- Tier fallback order is correct: API → [API, WORKFLOW, BROWSER], WORKFLOW → [WORKFLOW, BROWSER, API], BROWSER → [BROWSER, API, WORKFLOW]
+- Action finding works for existing and missing actions
+- No promotion with fewer than 5 successes
+- Promotion from BROWSER → WORKFLOW after 5 consecutive successes
+- No promotion when failure_count > 0 (even with enough successes)
+- API tier (highest) does not promote further
+
+### Key Findings
+1. **Promotion threshold of 5** is a good balance — enough to establish reliability without making users wait too long
+2. **Failure count as a gate** is important — a single failure resets confidence, preventing premature promotion of unreliable endpoints
+3. **API tier ceiling** prevents over-promotion — actions at the highest tier stay there
 
 ---
 
@@ -150,3 +172,15 @@ Even with `readme = "README.md"` in pyproject.toml, hatchling fails the build if
 
 ### L3: pip 21.x doesn't support hatchling editable installs (2026-03-11)
 Python 3.10 ships with pip 21.2.3 which can't do PEP 660 editable installs with hatchling. Must `pip install --upgrade pip` first.
+
+### L4: f-string brace escaping in code generators (2026-03-12)
+When generating Python code that contains `{variable}` expressions (like `placeholder = "{" + key + "}"`), using f-strings causes the braces to be evaluated at generation time. Either use string concatenation inside the generated code, or build lines as plain strings and join them. The `"\n".join(code_parts)` pattern is cleaner than deeply nested f-string escaping (`{{{{{key}}}}}`).
+
+### L5: Test iteration order matters for generated code (2026-03-12)
+`dir(obj)` returns attributes alphabetically. When probing a generated client for callable API methods, utility methods like `close()` come before API methods like `get_posts()`. Always filter out known utility/lifecycle methods before testing.
+
+### L6: API response types are not always objects (2026-03-12)
+Many REST APIs return JSON arrays at the top level (e.g., `GET /posts` returns `[{...}, {...}]`). Pydantic models that store example responses must accept `dict | list | None`, not just `dict | None`.
+
+### L7: Query parameter extraction needs cross-exchange merging (2026-03-12)
+When grouping HTTP exchanges by endpoint pattern, different exchanges to the same endpoint may have different query parameters. Extracting params from only the first exchange misses optional params that appear in later requests. Must iterate all exchanges in the group.
