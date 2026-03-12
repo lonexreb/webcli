@@ -78,6 +78,9 @@ select = ["E", "F", "I", "N", "W"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "live: tests that make real network requests (deselect with '-m not live')",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/webcli"]

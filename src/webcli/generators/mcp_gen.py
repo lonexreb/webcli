@@ -111,80 +111,86 @@ def generate_mcp_server_code(site: SiteEntry, spec: dict) -> str:
     registrations_str = ",\n".join(tool_registrations)
     handlers_str = "\n".join(tool_handlers)
 
-    code = f'''"""Auto-generated MCP server for {site.domain}."""
-
-from __future__ import annotations
-
-import json
-import httpx
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp import types
-
-
-server = Server("{site.domain}-webcli")
-
-BASE_URL = "{site.base_url}"
-
-
-async def _execute_api_call(
-    site_domain: str,
-    method: str,
-    path: str,
-    arguments: dict,
-) -> list[types.TextContent]:
-    """Execute an API call and return the result as MCP content."""
-    url = BASE_URL.rstrip("/") + path
-
-    # Separate path params from query/body params
-    query_params = {{}}
-    body_params = {{}}
-    for key, value in arguments.items():
-        if f"{{{{{key}}}}}" in path:
-            url = url.replace(f"{{{{{key}}}}}", str(value))
-        elif method in ("POST", "PUT", "PATCH"):
-            body_params[key] = value
-        else:
-            query_params[key] = value
-
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.request(
-            method,
-            url,
-            params=query_params or None,
-            json=body_params or None,
-        )
-
-    try:
-        result = json.dumps(response.json(), indent=2)
-    except Exception:
-        result = response.text
-
-    return [types.TextContent(type="text", text=result)]
-
-
-@server.list_tools()
-async def list_tools() -> list[types.Tool]:
-    return [
-{registrations_str}
+    # Use string concatenation to avoid f-string escaping issues
+    # with braces in the generated code
+    code_parts = [
+        f'"""Auto-generated MCP server for {site.domain}."""',
+        "",
+        "from __future__ import annotations",
+        "",
+        "import json",
+        "import httpx",
+        "from mcp.server import Server",
+        "from mcp.server.stdio import stdio_server",
+        "from mcp import types",
+        "",
+        "",
+        f'server = Server("{site.domain}-webcli")',
+        "",
+        f'BASE_URL = "{site.base_url}"',
+        "",
+        "",
+        "async def _execute_api_call(",
+        "    site_domain: str,",
+        "    method: str,",
+        "    path: str,",
+        "    arguments: dict,",
+        ") -> list[types.TextContent]:",
+        '    """Execute an API call and return the result as MCP content."""',
+        '    url = BASE_URL.rstrip("/") + path',
+        "",
+        "    # Separate path params from query/body params",
+        "    query_params = {}",
+        "    body_params = {}",
+        "    for key, value in arguments.items():",
+        '        placeholder = "{" + key + "}"',
+        "        if placeholder in path:",
+        "            url = url.replace(placeholder, str(value))",
+        '        elif method in ("POST", "PUT", "PATCH"):',
+        "            body_params[key] = value",
+        "        else:",
+        "            query_params[key] = value",
+        "",
+        "    async with httpx.AsyncClient(timeout=30) as client:",
+        "        response = await client.request(",
+        "            method,",
+        "            url,",
+        "            params=query_params or None,",
+        "            json=body_params or None,",
+        "        )",
+        "",
+        "    try:",
+        "        result = json.dumps(response.json(), indent=2)",
+        "    except Exception:",
+        "        result = response.text",
+        "",
+        '    return [types.TextContent(type="text", text=result)]',
+        "",
+        "",
+        "@server.list_tools()",
+        "async def list_tools() -> list[types.Tool]:",
+        "    return [",
+        registrations_str,
+        "    ]",
+        "",
+        "",
+        "@server.call_tool()",
+        "async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:",
+        handlers_str,
+        '    raise ValueError(f"Unknown tool: {name}")',
+        "",
+        "",
+        "async def main():",
+        "    async with stdio_server() as (read_stream, write_stream):",
+        "        await server.run(read_stream, write_stream, server.create_initialization_options())",
+        "",
+        "",
+        'if __name__ == "__main__":',
+        "    import asyncio",
+        "    asyncio.run(main())",
+        "",
     ]
-
-
-@server.call_tool()
-async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-{handlers_str}
-    raise ValueError(f"Unknown tool: {{name}}")
-
-
-async def main():
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream, server.create_initialization_options())
-
-
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
-'''
+    code = "\n".join(code_parts)
     return code
 
 

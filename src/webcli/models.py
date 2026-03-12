@@ -97,7 +97,7 @@ class EndpointInfo(BaseModel):
     request_schema: dict | None = None
     response_schema: dict | None = None
     example_request: dict | None = None
-    example_response: dict | None = None
+    example_response: dict | list | None = None
     auth_required: bool = False
 
 

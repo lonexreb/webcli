@@ -99,18 +99,22 @@ class TrafficAnalyzer:
             method, path_pattern = key.split(" ", 1)
             ex = exchanges[0]  # Use first exchange as representative
 
-            # Extract query parameters
+            # Extract query parameters (merge across all exchanges in group)
             params = []
-            parsed = urlparse(ex.request.url)
-            query_params = parse_qs(parsed.query)
-            for param_name, values in query_params.items():
+            seen_query_params: dict[str, str | None] = {}
+            for exch in exchanges:
+                parsed_ex = urlparse(exch.request.url)
+                for param_name, values in parse_qs(parsed_ex.query).items():
+                    if param_name not in seen_query_params:
+                        seen_query_params[param_name] = values[0] if values else None
+            for param_name, example_val in seen_query_params.items():
                 params.append(
                     ParameterInfo(
                         name=param_name,
                         location="query",
                         param_type="string",
                         required=False,
-                        example=values[0] if values else None,
+                        example=example_val,
                     )
                 )
 
