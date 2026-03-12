@@ -7,8 +7,6 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from playwright.async_api import Page, async_playwright
-
 from webcli.config import get_config
 from webcli.models import ParameterInfo, RecordedWorkflow, WorkflowStep
 
@@ -68,6 +66,8 @@ class WorkflowPlayer:
         Returns:
             Dict with results from the workflow execution.
         """
+        from playwright.async_api import async_playwright
+
         config = self._config
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=config.browser.headless)

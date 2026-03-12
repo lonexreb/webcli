@@ -537,6 +537,75 @@ def config_set(
 
 
 @app.command()
+def setup() -> None:
+    """Set up WebCLI: install browsers, validate dependencies, create directories."""
+    import sys
+
+    from webcli.config import get_config
+
+    config = get_config()
+    config.ensure_dirs()
+    console.print(f"[green]OK[/green] Data directory: {config.data_dir}")
+
+    # Check Python version
+    v = sys.version_info
+    if v >= (3, 10):
+        console.print(f"[green]OK[/green] Python {v.major}.{v.minor}.{v.micro}")
+    else:
+        console.print(f"[red]FAIL[/red] Python >= 3.10 required, got {v.major}.{v.minor}")
+
+    # Check Playwright
+    try:
+        import playwright
+        console.print(f"[green]OK[/green] Playwright installed")
+
+        # Try to install browsers
+        import subprocess
+
+        console.print("    Installing Chromium browser...")
+        result = subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "chromium"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            console.print("[green]OK[/green] Chromium browser installed")
+        else:
+            console.print(f"[yellow]WARN[/yellow] Browser install failed: {result.stderr[:100]}")
+    except ImportError:
+        console.print("[yellow]SKIP[/yellow] Playwright not installed (install with: pip install webcli[browser])")
+
+    # Check Anthropic SDK
+    try:
+        import anthropic
+        console.print("[green]OK[/green] Anthropic SDK installed")
+        try:
+            config.llm.get_api_key()
+            console.print("[green]OK[/green] ANTHROPIC_API_KEY configured")
+        except ValueError:
+            console.print("[yellow]SKIP[/yellow] ANTHROPIC_API_KEY not set (needed for LLM-enhanced discovery)")
+    except ImportError:
+        console.print("[yellow]SKIP[/yellow] Anthropic SDK not installed (install with: pip install webcli[llm])")
+
+    # Check MCP SDK
+    try:
+        import mcp
+        console.print("[green]OK[/green] MCP SDK installed")
+    except ImportError:
+        console.print("[yellow]SKIP[/yellow] MCP SDK not installed (install with: pip install webcli[mcp])")
+
+    # Check keyring
+    try:
+        import keyring
+        console.print(f"[green]OK[/green] Keyring backend: {keyring.get_keyring().__class__.__name__}")
+    except Exception as e:
+        console.print(f"[yellow]WARN[/yellow] Keyring issue: {e}")
+
+    console.print()
+    console.print("[bold]Setup complete.[/bold] Run `webcli discover <url>` to get started.")
+
+
+@app.command()
 def version() -> None:
     """Show WebCLI version."""
     console.print(f"WebCLI v{__version__}")

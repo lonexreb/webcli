@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 
-from playwright.async_api import Page, async_playwright
-
 from webcli.config import get_config
 from webcli.discovery.capture import TrafficCapture
 
@@ -52,6 +50,8 @@ class BrowserExplorer:
         Returns:
             Dict with the result of the action.
         """
+        from playwright.async_api import async_playwright
+
         config = self._config
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=config.browser.headless)

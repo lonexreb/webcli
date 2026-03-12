@@ -7,8 +7,6 @@ import json
 import time
 from urllib.parse import urlparse
 
-from playwright.async_api import Page, async_playwright
-
 from webcli.config import get_config
 from webcli.models import (
     CapturedExchange,
@@ -60,6 +58,16 @@ class TrafficCapture:
         api_indicators = ["/api/", "/v1/", "/v2/", "/v3/", "/graphql", "/rest/", "/ajax/"]
         return any(ind in parsed.path.lower() for ind in api_indicators)
 
+    def _ensure_playwright(self):
+        try:
+            from playwright.async_api import async_playwright
+            return async_playwright
+        except ImportError:
+            raise ImportError(
+                "Playwright is required for browser capture. "
+                "Install it with: pip install webcli[browser]"
+            )
+
     async def capture_page_traffic(
         self,
         url: str,
@@ -77,6 +85,7 @@ class TrafficCapture:
             List of captured request/response exchanges.
         """
         config = self._config
+        async_playwright = self._ensure_playwright()
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=config.browser.headless)
             context = await browser.new_context(
