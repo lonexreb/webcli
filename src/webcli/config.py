@@ -27,7 +27,8 @@ class LLMConfig(BaseModel):
         key = self.api_key or os.environ.get("ANTHROPIC_API_KEY", "")
         if not key:
             raise ValueError(
-                "No API key configured. Set ANTHROPIC_API_KEY or use `webcli config set llm.api_key`"
+                "No API key configured. Set ANTHROPIC_API_KEY"
+                " or use `webcli config set llm.api_key`"
             )
         return key
 

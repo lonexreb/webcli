@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -194,7 +193,8 @@ class SiteRegistry:
     def record_action_result(self, domain: str, action_name: str, success: bool) -> None:
         col = "success_count" if success else "failure_count"
         self.conn.execute(
-            f"UPDATE actions SET {col} = {col} + 1, last_used = ? WHERE site_domain = ? AND name = ?",
+            f"UPDATE actions SET {col} = {col} + 1, last_used = ?"
+            " WHERE site_domain = ? AND name = ?",
             (datetime.utcnow().isoformat(), domain, action_name),
         )
         self.conn.commit()

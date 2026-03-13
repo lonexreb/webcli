@@ -1,8 +1,5 @@
 """Tests for OpenAPI spec generation."""
 
-import json
-import tempfile
-from pathlib import Path
 
 from webcli.discovery.spec_generator import generate_openapi_spec, load_spec, save_spec
 from webcli.models import (
@@ -22,7 +19,12 @@ def _make_api():
                 method="GET",
                 path_pattern="/api/search",
                 parameters=[
-                    ParameterInfo(name="q", location="query", required=True, description="Search query"),
+                    ParameterInfo(
+                        name="q",
+                        location="query",
+                        required=True,
+                        description="Search query",
+                    ),
                     ParameterInfo(name="limit", location="query", param_type="integer"),
                 ],
                 description="Search for items",

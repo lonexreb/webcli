@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime
-
 from webcli.config import get_config
-from webcli.models import HealthStatus, SiteAction, SiteEntry, Tier
+from webcli.models import SiteAction, SiteEntry, Tier
 from webcli.registry import SiteRegistry
 from webcli.tiers.browser_explorer import BrowserExplorer
 from webcli.tiers.cached_workflow import WorkflowPlayer, load_workflow
@@ -51,7 +48,7 @@ class Router:
                 self._registry.record_action_result(domain, action_name, success=True)
                 self._maybe_promote(domain, action)
                 return result
-            except Exception as e:
+            except Exception:
                 self._registry.record_action_result(domain, action_name, success=False)
                 continue
 

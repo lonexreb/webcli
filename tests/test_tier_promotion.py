@@ -8,7 +8,6 @@ import pytest
 
 from webcli.models import (
     EndpointInfo,
-    HealthStatus,
     ParameterInfo,
     SiteAction,
     SiteEntry,

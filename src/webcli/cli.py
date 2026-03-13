@@ -50,7 +50,9 @@ def _run_async(coro):
 @app.command()
 def discover(
     url: str = typer.Argument(help="URL or domain to discover APIs for"),
-    action: Optional[str] = typer.Option(None, "--action", "-a", help="Specific action to discover"),
+    action: Optional[str] = typer.Option(
+        None, "--action", "-a", help="Specific action to discover"
+    ),
     headless: bool = typer.Option(True, help="Run browser in headless mode"),
     enhance: bool = typer.Option(True, help="Use LLM to enhance discovered endpoints"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output spec to file"),
@@ -62,7 +64,6 @@ def discover(
     from webcli.discovery.client_generator import generate_client_code, save_client
     from webcli.discovery.spec_generator import generate_openapi_spec, save_spec
     from webcli.models import (
-        AuthType,
         DiscoveredAPI,
         SiteAction,
         SiteEntry,
@@ -102,7 +103,10 @@ def discover(
     ] if not action else exchanges
 
     if not api_exchanges:
-        console.print("[yellow]No API traffic captured.[/yellow] The site may not use XHR/Fetch APIs.")
+        console.print(
+            "[yellow]No API traffic captured.[/yellow]"
+            " The site may not use XHR/Fetch APIs."
+        )
         console.print("Try with --action to specify what to do on the site.")
         raise typer.Exit(1)
 
@@ -145,7 +149,11 @@ def discover(
     registry = _get_registry()
     actions = [
         SiteAction(
-            name=ep.description.replace(" ", "_").lower() if ep.description else f"{ep.method}_{ep.path_pattern}",
+            name=(
+                ep.description.replace(" ", "_").lower()
+                if ep.description
+                else f"{ep.method}_{ep.path_pattern}"
+            ),
             description=ep.description,
             tier=Tier.API,
             endpoint=ep,
@@ -165,7 +173,10 @@ def discover(
 
     # Summary
     console.print()
-    console.print(f"[bold green]Discovered {len(endpoints)} capabilities for {domain}:[/bold green]")
+    console.print(
+        f"[bold green]Discovered {len(endpoints)}"
+        f" capabilities for {domain}:[/bold green]"
+    )
     for ep in endpoints:
         name = ep.description or f"{ep.method} {ep.path_pattern}"
         params = ", ".join(p.name for p in ep.parameters[:5])
@@ -217,7 +228,10 @@ def sites_list() -> None:
     sites = registry.list_sites()
 
     if not sites:
-        console.print("[yellow]No sites discovered yet.[/yellow] Run `webcli discover <url>` to get started.")
+        console.print(
+            "[yellow]No sites discovered yet.[/yellow]"
+            " Run `webcli discover <url>` to get started."
+        )
         return
 
     table = Table(title="Discovered Sites")
@@ -307,7 +321,10 @@ def auth_login(
         if cookies:
             console.print(f"[green]Extracted {len(cookies)} cookies[/green]")
         else:
-            console.print("[yellow]Could not extract cookies.[/yellow] Make sure you're logged in via your browser.")
+            console.print(
+                "[yellow]Could not extract cookies.[/yellow]"
+                " Make sure you're logged in via your browser."
+            )
     elif method == "api-key":
         key = typer.prompt("API Key", hide_input=True)
         auth.store_api_key(domain, key)
@@ -358,7 +375,11 @@ def mcp_generate(
     spec = load_spec(Path(site.openapi_spec_path))
     code = generate_mcp_server_code(site, spec)
 
-    output_path = Path(output) if output else config.data_dir / "mcp" / f"{domain.replace('.', '_')}_mcp.py"
+    output_path = (
+        Path(output)
+        if output
+        else config.data_dir / "mcp" / f"{domain.replace('.', '_')}_mcp.py"
+    )
     save_mcp_server(code, output_path)
     console.print(f"[green]MCP server generated at {output_path}[/green]")
     console.print(f"\nRun it with: python {output_path}")
@@ -375,7 +396,7 @@ def mcp_serve(
     server_path = config.data_dir / "mcp" / f"{domain.replace('.', '_')}_mcp.py"
 
     if not server_path.exists():
-        console.print(f"[yellow]MCP server not found. Generating...[/yellow]")
+        console.print("[yellow]MCP server not found. Generating...[/yellow]")
         mcp_generate(domain)
 
     import subprocess
@@ -417,9 +438,12 @@ def health_check(
         for site_domain, actions in results.items():
             console.print(f"\n[bold]{site_domain}[/bold]")
             for action, status in actions.items():
-                icon = {"healthy": "[green]OK", "degraded": "[yellow]WARN", "broken": "[red]FAIL"}.get(
-                    status.value, "[dim]?"
-                )
+                status_icons = {
+                    "healthy": "[green]OK",
+                    "degraded": "[yellow]WARN",
+                    "broken": "[red]FAIL",
+                }
+                icon = status_icons.get(status.value, "[dim]?")
                 console.print(f"  {icon}[/] {action}")
 
 
@@ -556,8 +580,10 @@ def setup() -> None:
 
     # Check Playwright
     try:
-        import playwright
-        console.print(f"[green]OK[/green] Playwright installed")
+        import importlib.util
+        if importlib.util.find_spec("playwright") is None:
+            raise ImportError
+        console.print("[green]OK[/green] Playwright installed")
 
         # Try to install browsers
         import subprocess
@@ -573,31 +599,48 @@ def setup() -> None:
         else:
             console.print(f"[yellow]WARN[/yellow] Browser install failed: {result.stderr[:100]}")
     except ImportError:
-        console.print("[yellow]SKIP[/yellow] Playwright not installed (install with: pip install webcli[browser])")
+        console.print(
+            "[yellow]SKIP[/yellow] Playwright not installed"
+            " (install with: pip install webcli[browser])"
+        )
 
     # Check Anthropic SDK
     try:
-        import anthropic
+        import importlib.util
+        if importlib.util.find_spec("anthropic") is None:
+            raise ImportError
         console.print("[green]OK[/green] Anthropic SDK installed")
         try:
             config.llm.get_api_key()
             console.print("[green]OK[/green] ANTHROPIC_API_KEY configured")
         except ValueError:
-            console.print("[yellow]SKIP[/yellow] ANTHROPIC_API_KEY not set (needed for LLM-enhanced discovery)")
+            console.print(
+                "[yellow]SKIP[/yellow] ANTHROPIC_API_KEY not set"
+                " (needed for LLM-enhanced discovery)"
+            )
     except ImportError:
-        console.print("[yellow]SKIP[/yellow] Anthropic SDK not installed (install with: pip install webcli[llm])")
+        console.print(
+            "[yellow]SKIP[/yellow] Anthropic SDK not installed"
+            " (install with: pip install webcli[llm])"
+        )
 
     # Check MCP SDK
     try:
-        import mcp
+        import importlib.util
+        if importlib.util.find_spec("mcp") is None:
+            raise ImportError
         console.print("[green]OK[/green] MCP SDK installed")
     except ImportError:
-        console.print("[yellow]SKIP[/yellow] MCP SDK not installed (install with: pip install webcli[mcp])")
+        console.print(
+            "[yellow]SKIP[/yellow] MCP SDK not installed"
+            " (install with: pip install webcli[mcp])"
+        )
 
     # Check keyring
     try:
         import keyring
-        console.print(f"[green]OK[/green] Keyring backend: {keyring.get_keyring().__class__.__name__}")
+        backend = keyring.get_keyring().__class__.__name__
+        console.print(f"[green]OK[/green] Keyring backend: {backend}")
     except Exception as e:
         console.print(f"[yellow]WARN[/yellow] Keyring issue: {e}")
 

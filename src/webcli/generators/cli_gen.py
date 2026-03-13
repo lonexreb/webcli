@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import typer
 
-from webcli.models import EndpointInfo, SiteEntry
+from webcli.models import SiteEntry
 
 
 def _type_str_to_python(type_str: str) -> type:

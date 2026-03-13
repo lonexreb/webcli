@@ -3,12 +3,9 @@
 from webcli.models import (
     AuthType,
     CapturedExchange,
-    CapturedHeader,
     CapturedRequest,
     CapturedResponse,
-    DiscoveredAPI,
     EndpointInfo,
-    HealthStatus,
     MCPToolSchema,
     ParameterInfo,
     RecordedWorkflow,

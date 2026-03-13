@@ -214,7 +214,8 @@ class TrafficAnalyzer:
             }
             endpoint_summaries.append(summary)
 
-        prompt = f"""Analyze these API endpoints discovered from network traffic and provide descriptions.
+        prompt = f"""Analyze these API endpoints discovered from \
+network traffic and provide descriptions.
 
 Endpoints:
 {json.dumps(endpoint_summaries, indent=2)}

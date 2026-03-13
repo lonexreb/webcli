@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from urllib.parse import urlparse
 
 from webcli.models import DiscoveredAPI, EndpointInfo, ParameterInfo
 
@@ -94,8 +93,6 @@ def _endpoint_to_openapi_path(endpoint: EndpointInfo) -> dict:
 
 def generate_openapi_spec(api: DiscoveredAPI) -> dict:
     """Generate a complete OpenAPI 3.1 spec from a DiscoveredAPI."""
-    parsed = urlparse(api.base_url)
-
     spec: dict = {
         "openapi": "3.1.0",
         "info": {

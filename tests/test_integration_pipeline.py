@@ -7,12 +7,8 @@ No browser or API keys required.
 """
 
 import json
-import tempfile
 from pathlib import Path
 
-import pytest
-
-from webcli.config import Config, reset_config
 from webcli.discovery.analyzer import TrafficAnalyzer
 from webcli.discovery.client_generator import generate_client_code, save_client
 from webcli.discovery.spec_generator import generate_openapi_spec, save_spec
@@ -29,7 +25,6 @@ from webcli.models import (
     Tier,
 )
 from webcli.registry import SiteRegistry
-
 
 # --- Realistic mock traffic for JSONPlaceholder-like API ---
 
@@ -331,7 +326,11 @@ class TestFullPipeline:
         # Build site entry
         actions = [
             SiteAction(
-                name=ep.description.replace(" ", "_").lower() if ep.description else f"{ep.method}_{ep.path_pattern}",
+                name=(
+                    ep.description.replace(" ", "_").lower()
+                    if ep.description
+                    else f"{ep.method}_{ep.path_pattern}"
+                ),
                 description=ep.description or f"{ep.method} {ep.path_pattern}",
                 tier=Tier.API,
                 endpoint=ep,
@@ -419,7 +418,13 @@ class TestPipelineEndToEnd:
         registry = SiteRegistry(tmp_path / "registry.db")
         actions = [
             SiteAction(
-                name=f"{ep.method.lower()}_{ep.path_pattern.strip('/').replace('/', '_').replace('{', '').replace('}', '')}",
+                name=(
+                    f"{ep.method.lower()}_"
+                    + ep.path_pattern.strip("/")
+                    .replace("/", "_")
+                    .replace("{", "")
+                    .replace("}", "")
+                ),
                 description=ep.description or f"{ep.method} {ep.path_pattern}",
                 tier=Tier.API,
                 endpoint=ep,

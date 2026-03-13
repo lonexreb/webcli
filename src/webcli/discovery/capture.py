@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from urllib.parse import urlparse
 
@@ -173,7 +172,10 @@ class TrafficCapture:
                 )
 
             client.on("Network.requestWillBeSent", on_request_will_be_sent)
-            client.on("Network.responseReceived", lambda p: asyncio.ensure_future(on_response_received(p)))
+            client.on(
+                "Network.responseReceived",
+                lambda p: asyncio.ensure_future(on_response_received(p)),
+            )
 
             # Navigate
             await page.goto(url, wait_until="networkidle", timeout=config.browser.timeout_ms)

@@ -18,7 +18,7 @@ import pytest
 
 from webcli.discovery.analyzer import TrafficAnalyzer
 from webcli.discovery.client_generator import generate_client_code, save_client
-from webcli.discovery.spec_generator import generate_openapi_spec, save_spec
+from webcli.discovery.spec_generator import generate_openapi_spec
 from webcli.generators.mcp_gen import generate_mcp_server_code
 from webcli.models import (
     AuthType,

@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from webcli.config import get_config
 from webcli.models import ParameterInfo, RecordedWorkflow, WorkflowStep
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 
 class WorkflowRecorder:
@@ -77,7 +80,11 @@ class WorkflowPlayer:
             page = await context.new_page()
 
             if start_url:
-                await page.goto(start_url, wait_until="networkidle", timeout=config.browser.timeout_ms)
+                await page.goto(
+                    start_url,
+                    wait_until="networkidle",
+                    timeout=config.browser.timeout_ms,
+                )
 
             results = []
             for i, step in enumerate(workflow.steps):
@@ -85,7 +92,12 @@ class WorkflowPlayer:
                     result = await self._execute_step(page, step, params)
                     results.append({"step": i, "action": step.action, "success": True, **result})
                 except Exception as e:
-                    results.append({"step": i, "action": step.action, "success": False, "error": str(e)})
+                    results.append({
+                        "step": i,
+                        "action": step.action,
+                        "success": False,
+                        "error": str(e),
+                    })
                     break
 
             # Try to extract final page data

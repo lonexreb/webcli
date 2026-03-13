@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
+from typing import TYPE_CHECKING
 
 from webcli.config import get_config
 from webcli.discovery.capture import TrafficCapture
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 
 class BrowserExplorer:
@@ -99,7 +102,9 @@ class BrowserExplorer:
             # Get visible text content (simplified DOM)
             visible_text = await page.evaluate("""() => {
                 const elements = document.querySelectorAll(
-                    'a, button, input, select, textarea, h1, h2, h3, p, span, label, [role="button"], [role="link"]'
+                    'a, button, input, select, textarea, '
+                    + 'h1, h2, h3, p, span, label, '
+                    + '[role="button"], [role="link"]'
                 );
                 const items = [];
                 for (const el of elements) {
@@ -138,9 +143,12 @@ Previous actions taken:
 {json.dumps(history, indent=2)}
 
 What should I do next? Respond with a JSON object:
-- If an action is needed: {{"action": "click|fill|select|navigate|scroll|wait", "selector": "CSS selector", "value": "value if filling", "reason": "why"}}
-- If the goal is achieved: {{"action": "done", "result": {{"extracted data here"}}, "reason": "why"}}
-- If the goal can't be achieved: {{"action": "fail", "reason": "why"}}
+- If an action is needed: {{"action": "click|fill|select|navigate|scroll|wait", \
+"selector": "CSS selector", "value": "value if filling", "reason": "why"}}
+- If the goal is achieved: {{"action": "done", \
+"result": {{"extracted data here"}}, "reason": "why"}}
+- If the goal can't be achieved: {{"action": "fail", \
+"reason": "why"}}
 
 Respond with ONLY the JSON object."""
 

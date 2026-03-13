@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import keyring
 
 from webcli.config import get_config
 from webcli.models import AuthType
-
 
 KEYRING_SERVICE = "webcli"
 

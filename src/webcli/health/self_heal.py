@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 
 from webcli.config import get_config
-from webcli.discovery.capture import TrafficCapture
 from webcli.discovery.analyzer import TrafficAnalyzer
-from webcli.models import EndpointInfo, HealthStatus, SiteEntry
+from webcli.discovery.capture import TrafficCapture
+from webcli.models import EndpointInfo, HealthStatus
 from webcli.registry import SiteRegistry
 
 
@@ -120,17 +119,21 @@ class SelfHealer:
             for i, ep in enumerate(candidates)
         ]
 
-        prompt = f"""An API endpoint has changed. Find the best match for the old endpoint among the new candidates.
-
-Old endpoint:
-{json.dumps(old_summary, indent=2)}
-
-New candidate endpoints:
-{json.dumps(candidate_summaries, indent=2)}
-
-Which candidate (by index) is most likely the same endpoint after a change?
-Respond with ONLY a JSON object: {{"index": <number>, "confidence": "high"|"medium"|"low", "reason": "..."}}
-If none match, respond: {{"index": -1, "confidence": "none", "reason": "..."}}"""
+        prompt = (
+            "An API endpoint has changed. Find the best match"
+            " for the old endpoint among the new candidates.\n\n"
+            f"Old endpoint:\n{json.dumps(old_summary, indent=2)}\n\n"
+            "New candidate endpoints:\n"
+            f"{json.dumps(candidate_summaries, indent=2)}\n\n"
+            "Which candidate (by index) is most likely the"
+            " same endpoint after a change?\n"
+            "Respond with ONLY a JSON object: "
+            '{{"index": <number>, "confidence":'
+            ' "high"|"medium"|"low", "reason": "..."}}\n'
+            "If none match, respond: "
+            '{{"index": -1, "confidence": "none",'
+            ' "reason": "..."}}'
+        )
 
         try:
             response = client.messages.create(
