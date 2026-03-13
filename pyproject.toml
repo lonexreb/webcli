@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "webcli"
+name = "web2cli"
 version = "0.1.0"
 description = "Turn any website into a CLI/API for AI agents"
 readme = "README.md"
