@@ -11,7 +11,7 @@
   <a href="https://pypi.org/project/site2cli/"><img src="https://img.shields.io/pypi/v/site2cli" alt="PyPI"></a>
   <a href="https://pypi.org/project/site2cli/"><img src="https://img.shields.io/pypi/pyversions/site2cli" alt="Python"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/lonexreb/site2cli" alt="License"></a>
-  <a href="#testing"><img src="https://img.shields.io/badge/tests-156_passing-brightgreen" alt="Tests"></a>
+  <a href="#testing"><img src="https://img.shields.io/badge/tests-214_passing-brightgreen" alt="Tests"></a>
 </p>
 
 ---
@@ -56,16 +56,19 @@ graph TD
 
 ## Comparison
 
-| Feature | browser-use | Hand-built CLIs | CLI-Anything | **site2cli** |
-|---|---|---|---|---|
-| Works on any site | Yes | No | Yes | Yes |
-| Structured output | No | Yes | Yes | Yes |
-| Auto-discovery | No | No | No | **Yes** |
-| MCP server generation | No | No | No | **Yes** |
-| Progressive optimization | No | N/A | No | **Yes** |
-| Self-healing | No | No | No | **Yes** |
-| No browser needed (after discovery) | No | Yes | No | **Yes** |
-| Community spec sharing | No | No | No | **Yes** |
+| Feature | browser-use | Hand-built CLIs | CLI-Anything | webctl | **site2cli** |
+|---|---|---|---|---|---|
+| Works on any site | Yes | No | Yes | Yes | Yes |
+| Structured output | No | Yes | Yes | JSON/a11y/md | Yes |
+| Auto-discovery | No | No | No | No | **Yes** |
+| MCP server generation | No | No | No | No | **Yes** |
+| Progressive optimization | No | N/A | No | No | **Yes** |
+| Cookie banner handling | No | N/A | No | **Yes** | **Yes** |
+| Auth page detection | No | N/A | No | **Yes** | **Yes** |
+| Self-healing | No | No | No | No | **Yes** |
+| No browser needed (after discovery) | No | Yes | No | No | **Yes** |
+| Agent init/config | No | No | No | **Yes** | **Yes** |
+| Community spec sharing | No | No | No | No | **Yes** |
 
 ## Quick Start
 
@@ -224,24 +227,31 @@ Reproduce all experiments: `python experiments/run_all_experiments.py`
 
 ## Testing
 
-**156 tests** (150 unit/integration + 6 live), all passing on Python 3.10+.
+**214 tests** (208 unit/integration + 6 live), all passing on Python 3.10+.
 
 | Test File | Tests | Coverage Area |
 |---|---|---|
 | `test_analyzer.py` | 23 | Traffic analysis, path normalization, schema inference, auth detection |
 | `test_cli.py` | 16 | All CLI subcommands via CliRunner |
 | `test_models.py` | 15 | Pydantic model validation, serialization, defaults |
-| `test_registry.py` | 10 | SQLite CRUD, tier updates, health tracking |
 | `test_router.py` | 15 | Tier routing, fallback, promotion, param forwarding |
+| `test_cookie_banner.py` | 12 | Cookie banner detection & auto-dismissal |
+| `test_auth.py` | 11 | Keyring store/get, auth headers, cookie extraction |
+| `test_integration_pipeline.py` | 11 | Full pipeline with mock data |
+| `test_registry.py` | 10 | SQLite CRUD, tier updates, health tracking |
+| `test_wait_conditions.py` | 10 | Rich wait conditions (network-idle, selector, stable) |
+| `test_detectors.py` | 10 | Auth/SSO/CAPTCHA page detection |
 | `test_tier_promotion.py` | 9 | Tier fallback, auto-promotion, failure gates |
 | `test_config.py` | 8 | Config singleton, dirs, YAML save/load, API key |
-| `test_auth.py` | 11 | Keyring store/get, auth headers, cookie extraction |
 | `test_health.py` | 8 | Health check with mock httpx, status persistence |
 | `test_generated_code.py` | 8 | compile() validation of generated code |
-| `test_community.py` | 6 | Export/import roundtrip, community listing |
+| `test_retry.py` | 8 | Async retry utility with delay and callbacks |
+| `test_a11y.py` | 8 | Accessibility tree extraction and formatting |
+| `test_output_filter.py` | 8 | Output filtering (grep, limit, keys-only) |
+| `test_agent_config.py` | 8 | Agent config generation (Claude MCP, generic) |
 | `test_spec_generator.py` | 6 | OpenAPI spec generation and persistence |
+| `test_community.py` | 6 | Export/import roundtrip, community listing |
 | `test_client_generator.py` | 4 | Python client code generation |
-| `test_integration_pipeline.py` | 11 | Full pipeline with mock data |
 | `test_integration_live.py` | 6 | Live tests against JSONPlaceholder + httpbin |
 
 ## Development
@@ -266,6 +276,17 @@ ruff check src/ tests/
 - **Anthropic API key** (`ANTHROPIC_API_KEY`): Used for LLM-assisted endpoint analysis. Optional — discovery works without it, just without enhanced descriptions.
 - **No other keys required** for core functionality.
 
+## What's New in v0.2.5
+
+- **Cookie banner auto-dismissal** — 3-strategy detection (30+ vendor selectors, multilingual text matching, a11y role matching) runs automatically during discovery
+- **Auth page detection** — Detects login/SSO/OAuth/MFA/CAPTCHA pages and suggests `site2cli auth login`
+- **Accessibility tree extraction** — Better page representation for LLM-driven exploration (replaces CSS-only element extraction)
+- **Action retry logic** — Configurable retries with delay for click/fill/select/press actions
+- **Rich wait conditions** — 9 condition types: `network-idle`, `load`, `exists:<selector>`, `visible:<selector>`, `hidden:<selector>`, `url-contains:<text>`, `text-contains:<text>`, `stable`
+- **Output filtering** — `--grep`, `--limit`, `--keys-only`, `--compact` flags on `site2cli run`
+- **Agent init command** — `site2cli init` generates Claude MCP config or generic agent prompts from discovered sites
+- **214 tests** (up from 156), all passing
+
 ## Roadmap
 
 - [x] Core discovery pipeline (traffic capture → OpenAPI → client)
@@ -275,6 +296,10 @@ ruff check src/ tests/
 - [x] Tier auto-promotion (Browser → Workflow → API)
 - [x] PyPI package publication
 - [x] Pre-launch validation suite (7 experiments, 15+ APIs, all passing)
+- [x] Cookie banner handling & auth page detection
+- [x] Accessibility tree extraction for browser exploration
+- [x] Agent init/config generation
+- [x] Output filtering for run results
 - [ ] OAuth device flow support
 - [ ] Workflow recording UI
 - [ ] Multi-site orchestration

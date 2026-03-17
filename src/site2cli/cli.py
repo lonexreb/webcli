@@ -191,6 +191,12 @@ def run(
     params: Optional[list[str]] = typer.Argument(None, help="key=value parameters"),
     json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
     no_headless: bool = typer.Option(False, "--no-headless", help="Show browser window"),
+    grep: Optional[str] = typer.Option(
+        None, "--grep", "-g", help="Filter output keys matching pattern"
+    ),
+    limit: Optional[int] = typer.Option(None, "--limit", "-l", help="Limit array results"),
+    keys_only: bool = typer.Option(False, "--keys-only", help="Show only top-level keys"),
+    compact: bool = typer.Option(False, "--compact", help="Single-line JSON"),
 ) -> None:
     """Execute a discovered action on a site."""
     from site2cli.router import Router
@@ -213,8 +219,15 @@ def run(
     with console.status(f"[bold green]Executing {action} on {domain}..."):
         result = _run_async(router.execute(domain, action, param_dict))
 
-    if json_output:
-        console.print(json.dumps(result, indent=2, default=str))
+    # Apply output filters
+    if grep or limit is not None or keys_only:
+        from site2cli.output_filter import filter_result
+
+        result = filter_result(result, grep=grep, limit=limit, keys_only=keys_only)
+
+    indent = None if compact else 2
+    if json_output or compact:
+        console.print(json.dumps(result, indent=indent, default=str))
     else:
         from rich.json import JSON
 
@@ -655,6 +668,48 @@ def setup() -> None:
 
     console.print()
     console.print("[bold]Setup complete.[/bold] Run `site2cli discover <url>` to get started.")
+
+
+@app.command()
+def init(
+    agent: str = typer.Option("claude", help="Agent type: claude, generic, all"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path"),
+) -> None:
+    """Generate agent configuration for discovered sites."""
+    from site2cli.generators.agent_config import (
+        generate_claude_mcp_config,
+        generate_generic_agent_prompt,
+    )
+
+    registry = _get_registry()
+    sites = registry.list_sites()
+
+    if agent in ("claude", "all"):
+        config = generate_claude_mcp_config(sites)
+        config_json = json.dumps(config, indent=2)
+        if output and agent == "claude":
+            output.write_text(config_json)
+            console.print(f"[green]Claude MCP config written to {output}[/green]")
+        else:
+            console.print("[bold]Claude Code MCP Configuration:[/bold]")
+            console.print(config_json)
+
+    if agent in ("generic", "all"):
+        prompt = generate_generic_agent_prompt(sites)
+        if output and agent == "generic":
+            output.write_text(prompt)
+            console.print(f"[green]Agent prompt written to {output}[/green]")
+        else:
+            if agent == "all":
+                console.print()
+            console.print("[bold]Generic Agent Prompt:[/bold]")
+            console.print(prompt)
+
+    if not sites:
+        console.print(
+            "\n[yellow]No sites discovered yet.[/yellow]"
+            " Run `site2cli discover <url>` first."
+        )
 
 
 @app.command()

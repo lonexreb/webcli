@@ -490,6 +490,52 @@ site2cli handles real-world conditions — detecting API status, handling errors
 
 ---
 
+## Experiment #15: webctl Feature Integration (2026-03-17)
+
+### Hypothesis
+Integrating webctl-inspired browser automation features (cookie banner dismissal, auth detection, a11y tree, retries, rich waits, output filtering, agent init) will make Tier 1 browser exploration more reliable and agent adoption smoother, without adding external dependencies.
+
+### What Was Added
+
+**New `browser/` package** (5 modules):
+- `retry.py` — Generic async retry with configurable delay and on_retry callback
+- `wait.py` — 9 rich wait conditions replacing bare `wait_for_timeout(2000)`
+- `cookie_banner.py` — 3-strategy cookie consent auto-dismissal (30+ vendor selectors, 20+ multilingual text patterns, a11y role matching)
+- `detectors.py` — Auth page detection (login/SSO/OAuth/MFA/CAPTCHA) with provider identification
+- `a11y.py` — Accessibility tree extraction via Playwright API with LLM-friendly formatting
+
+**Output filtering** (`output_filter.py`):
+- `--grep`, `--limit`, `--keys-only`, `--compact` flags on `run` command
+
+**Agent init** (`generators/agent_config.py` + `init` CLI command):
+- Claude MCP config generation from discovered sites
+- Generic agent prompt generation
+
+### Integration Points
+
+- `browser_explorer.py` — Step 0: cookie banner + auth detection. Element extraction: a11y with CSS fallback. Actions: wrapped with retry. Wait: rich conditions. LLM prompt: updated with new capabilities.
+- `capture.py` — After page.goto: cookie banner dismissal + auth detection logging.
+- `cli.py` — New `init` command + output filter flags on `run`.
+- `config.py` — New `action_retries` and `retry_delay_ms` in BrowserConfig.
+
+### Results
+
+- **64 new tests**, all passing
+- **214 total tests** (208 + 6 live), all passing
+- **0 existing tests broken** — fully backward compatible
+- **0 new dependencies** — all features use Playwright APIs + stdlib
+- **Lint clean** (ruff check passes on all new code)
+
+### What Was NOT Added (and Why)
+
+- **Daemon architecture**: site2cli's browser is ephemeral by design — discover → API → no browser
+- **Unix socket protocol**: No persistent browser = no need for IPC
+- **Multi-tab support**: Not needed for traffic capture or LLM-driven exploration
+- **Error screenshots**: `--no-headless` flag serves this purpose already
+- **Custom query DSL**: Playwright selectors + a11y tree are sufficient
+
+---
+
 ## Learnings & Mistakes
 
 ### L1: pytest-asyncio version compatibility (2026-03-11)

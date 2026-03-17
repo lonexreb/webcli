@@ -20,9 +20,17 @@ src/site2cli/
 │   ├── analyzer.py     # LLM-assisted pattern analysis
 │   ├── spec_generator.py  # OpenAPI spec generation
 │   └── client_generator.py # Python client code generation
+├── browser/
+│   ├── retry.py        # Async retry with delay for browser actions
+│   ├── wait.py         # Rich wait conditions (network-idle, selector, stable)
+│   ├── cookie_banner.py # Cookie consent auto-dismissal (3 strategies)
+│   ├── detectors.py    # Auth/SSO/CAPTCHA page detection
+│   └── a11y.py         # Accessibility tree extraction for LLM context
+├── output_filter.py    # Output filtering (grep, limit, keys-only)
 ├── generators/
 │   ├── cli_gen.py      # Dynamic CLI command generation
-│   └── mcp_gen.py      # MCP server generation
+│   ├── mcp_gen.py      # MCP server generation
+│   └── agent_config.py # Agent config generation (Claude MCP, generic)
 ├── auth/
 │   └── manager.py      # Auth flow management
 ├── tiers/
@@ -58,7 +66,7 @@ experiments/
 ## Testing
 
 ```bash
-pytest                    # 150 unit/integration tests (no network)
+pytest                    # 214 unit/integration tests (no network)
 pytest -m live            # 6 live tests (hits jsonplaceholder + httpbin)
 pytest -v                 # Verbose output
 ```
@@ -68,19 +76,26 @@ pytest -v                 # Verbose output
 - `test_cli.py` — CLI commands via CliRunner (16 tests)
 - `test_models.py` — Pydantic model validation (15 tests)
 - `test_router.py` — Router execution, fallback, promotion (15 tests)
+- `test_cookie_banner.py` — Cookie banner detection & dismissal (12 tests)
 - `test_auth.py` — Keyring store/get, auth headers (11 tests)
 - `test_integration_pipeline.py` — Full pipeline with mock data (11 tests)
 - `test_registry.py` — SQLite registry CRUD (10 tests)
+- `test_wait_conditions.py` — Rich wait conditions (10 tests)
+- `test_detectors.py` — Auth/CAPTCHA page detection (10 tests)
 - `test_tier_promotion.py` — Tier fallback & auto-promotion (9 tests)
 - `test_config.py` — Config singleton, dirs, YAML save/load (8 tests)
 - `test_health.py` — Health check with mock httpx (8 tests)
 - `test_generated_code.py` — compile() validation (8 tests)
+- `test_retry.py` — Async retry utility (8 tests)
+- `test_a11y.py` — Accessibility tree extraction (8 tests)
+- `test_output_filter.py` — Output filtering (grep, limit, keys-only) (8 tests)
+- `test_agent_config.py` — Agent config generation (8 tests)
 - `test_spec_generator.py` — OpenAPI spec generation (6 tests)
 - `test_community.py` — Export/import roundtrip (6 tests)
 - `test_integration_live.py` — Live API tests, marked `@pytest.mark.live` (6 tests)
 - `test_client_generator.py` — Python client code gen (4 tests)
 
-**Total: 156 tests (150 + 6 live), all passing.**
+**Total: 214 tests (208 + 6 live), all passing.**
 
 ## Live Validation (7 Experiments, All Passing)
 

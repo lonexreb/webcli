@@ -321,6 +321,48 @@ CLI-Anything uses an LLM-driven 7-phase pipeline to analyze **source code** of d
 
 ---
 
+## 10. webctl Analysis
+
+**GitHub**: github.com/cosinusalpha/webctl — 409 stars, MIT license, Python 3.11+
+
+### What It Does
+
+webctl is a daemon+CLI browser automation tool that runs a persistent browser backend (via Unix socket) and exposes page interaction commands (navigate, click, type, select, screenshot, query). It optimizes for reliable automation with features like cookie banner dismissal, retry logic, rich wait conditions, and accessibility tree extraction.
+
+**Architecture**: Client → Unix Socket → Daemon → Playwright Browser (persistent)
+
+### Head-to-Head Comparison
+
+| Dimension | webctl | site2cli |
+|---|---|---|
+| **Architecture** | Daemon + CLI client (persistent browser) | Ephemeral browser (launch per discovery) |
+| **Primary goal** | Browser automation | Eliminate browser automation |
+| **Cookie banners** | Auto-dismiss (vendor selectors + text match) | Auto-dismiss (3-strategy: vendor CSS + text + a11y) |
+| **Auth detection** | Login page detection | Login/SSO/OAuth/MFA/CAPTCHA detection |
+| **Wait conditions** | network-idle, selector, stable | network-idle, load, selector (exists/visible/hidden), url-contains, text-contains, stable |
+| **Page representation** | A11y tree + markdown | A11y tree with CSS fallback |
+| **Retry logic** | Action-level retries | Action-level retries with configurable delay |
+| **Output formats** | JSON, a11y tree, markdown, screenshot | OpenAPI spec, Python client, MCP server, CLI |
+| **Multi-tab** | Yes | No (not needed — browser is temporary) |
+| **Agent config** | Claude/generic config generation | Claude MCP config + generic agent prompt |
+| **Progressive?** | No (always browser) | Yes (Browser → Workflow → API) |
+| **After discovery** | Still needs browser | No browser needed (direct API) |
+
+### Key Takeaway
+
+**Complementary, not competing.** webctl optimizes browser automation; site2cli eliminates it. We adopted webctl's best ideas (cookie banners, auth detection, a11y tree, retries, rich waits, agent init) to make our Tier 1 browser exploration more reliable, while our core value proposition remains: discover the API so you never need the browser again.
+
+### What We Adopted From webctl
+
+1. **Cookie banner auto-dismissal**: 3-strategy approach (vendor CSS, multilingual text, a11y role matching) — makes discovery more reliable on GDPR-compliant sites
+2. **Auth page detection**: Detects login/SSO/MFA/CAPTCHA pages and suggests `site2cli auth login` — prevents wasted discovery attempts
+3. **Accessibility tree extraction**: Better page representation for LLM context than CSS queries — captures ARIA roles and states
+4. **Action retry logic**: Configurable retry with delay — handles transient click/fill failures
+5. **Rich wait conditions**: 9 condition types replace the bare `wait_for_timeout(2000)` — more reliable page state detection
+6. **Agent init command**: Generate Claude MCP config and generic agent prompts from discovered sites
+
+---
+
 ## Sources
 
 - [Introducing Perplexity Computer](https://www.perplexity.ai/hub/blog/introducing-perplexity-computer)

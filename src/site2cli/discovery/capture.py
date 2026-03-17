@@ -180,6 +180,29 @@ class TrafficCapture:
             # Navigate
             await page.goto(url, wait_until="networkidle", timeout=config.browser.timeout_ms)
 
+            # Dismiss cookie banners before interaction
+            try:
+                from site2cli.browser.cookie_banner import dismiss_cookie_banner
+
+                await dismiss_cookie_banner(page)
+            except Exception:
+                pass
+
+            # Detect auth pages and log warning
+            try:
+                from site2cli.browser.detectors import detect_auth_page
+
+                auth_result = await detect_auth_page(page)
+                if auth_result.detected:
+                    import logging
+
+                    logging.getLogger("site2cli").warning(
+                        "Auth page detected (%s). Some traffic may still be captured.",
+                        auth_result.kind,
+                    )
+            except Exception:
+                pass
+
             if interaction_callback:
                 await interaction_callback(page)
             else:

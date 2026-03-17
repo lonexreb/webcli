@@ -45,6 +45,8 @@ class BrowserConfig(BaseModel):
     timeout_ms: int = 30_000
     stealth: bool = True
     user_data_dir: str | None = None
+    action_retries: int = 2
+    retry_delay_ms: int = 1000
 
 
 class Config(BaseModel):

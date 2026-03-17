@@ -69,6 +69,14 @@ class BrowserExplorer:
                     url, wait_until="domcontentloaded", timeout=config.browser.timeout_ms
                 )
 
+            # Dismiss cookie banners before interaction
+            try:
+                from site2cli.browser.cookie_banner import dismiss_cookie_banner
+
+                await dismiss_cookie_banner(page)
+            except Exception:
+                pass
+
             result = await self._llm_driven_interaction(
                 page, action, params
             )
@@ -99,6 +107,31 @@ class BrowserExplorer:
         history: list[dict] = []
         result_data: dict = {}
 
+        # Step 0: Page preparation — cookie banners and auth detection
+        try:
+            from site2cli.browser.cookie_banner import dismiss_cookie_banner
+
+            await dismiss_cookie_banner(page)
+        except Exception:
+            pass
+
+        try:
+            from site2cli.browser.detectors import detect_auth_page
+
+            auth_result = await detect_auth_page(page)
+            if auth_result.detected and auth_result.requires_human:
+                from urllib.parse import urlparse as _urlparse
+
+                _domain = _urlparse(page.url).hostname or ""
+                return {
+                    "error": "Auth required",
+                    "auth_kind": auth_result.kind,
+                    "provider": auth_result.provider,
+                    "suggestion": f"Run site2cli auth login {_domain}",
+                }
+        except Exception:
+            pass
+
         for step in range(max_steps):
             # Get page state
             try:
@@ -111,39 +144,59 @@ class BrowserExplorer:
                 page_title = "(loading)"
             page_url = page.url
 
-            # Get visible text content (simplified DOM)
-            visible_text = await page.evaluate("""() => {
-                const elements = document.querySelectorAll(
-                    'a, button, input, select, textarea, '
-                    + 'h1, h2, h3, p, span, label, '
-                    + '[role="button"], [role="link"]'
-                );
-                const items = [];
-                for (const el of elements) {
-                    const rect = el.getBoundingClientRect();
-                    if (rect.width === 0 && rect.height === 0) continue;
-                    const tag = el.tagName.toLowerCase();
-                    const text = el.textContent?.trim().slice(0, 200) || '';
-                    if (!text && !el.href && !el.name && !el.placeholder) continue;
-                    const attrs = {};
-                    if (el.id) attrs.id = el.id;
-                    if (el.name) attrs.name = el.name;
-                    if (el.type) attrs.type = el.type;
-                    if (el.placeholder) attrs.placeholder = el.placeholder;
-                    if (el.href) attrs.href = el.href;
-                    if (el.value) attrs.value = el.value.slice(0, 50);
-                    if (el.download !== undefined && el.download !== '')
-                        attrs.download = el.download;
-                    const selector = el.id ? '#' + el.id
-                        : el.name ? `${tag}[name="${el.name}"]`
-                        : el.className ? `${tag}.${el.className.split(' ')[0]}`
-                        : tag;
-                    items.push({tag, text, attrs, selector});
-                }
-                return items.slice(0, 100);
-            }""")
+            # Get page elements — prefer a11y tree, fall back to CSS queries
+            use_a11y = False
+            try:
+                from site2cli.browser.a11y import extract_a11y_tree, format_a11y_for_llm
+
+                a11y_nodes = await extract_a11y_tree(page)
+                if a11y_nodes:
+                    page_elements_str = format_a11y_for_llm(a11y_nodes)
+                    use_a11y = True
+            except Exception:
+                pass
+
+            if not use_a11y:
+                visible_text = await page.evaluate("""() => {
+                    const elements = document.querySelectorAll(
+                        'a, button, input, select, textarea, '
+                        + 'h1, h2, h3, p, span, label, '
+                        + '[role="button"], [role="link"]'
+                    );
+                    const items = [];
+                    for (const el of elements) {
+                        const rect = el.getBoundingClientRect();
+                        if (rect.width === 0 && rect.height === 0) continue;
+                        const tag = el.tagName.toLowerCase();
+                        const text = el.textContent?.trim().slice(0, 200) || '';
+                        if (!text && !el.href && !el.name && !el.placeholder) continue;
+                        const attrs = {};
+                        if (el.id) attrs.id = el.id;
+                        if (el.name) attrs.name = el.name;
+                        if (el.type) attrs.type = el.type;
+                        if (el.placeholder) attrs.placeholder = el.placeholder;
+                        if (el.href) attrs.href = el.href;
+                        if (el.value) attrs.value = el.value.slice(0, 50);
+                        if (el.download !== undefined && el.download !== '')
+                            attrs.download = el.download;
+                        const selector = el.id ? '#' + el.id
+                            : el.name ? `${tag}[name="${el.name}"]`
+                            : el.className ? `${tag}.${el.className.split(' ')[0]}`
+                            : tag;
+                        items.push({tag, text, attrs, selector});
+                    }
+                    return items.slice(0, 100);
+                }""")
+                page_elements_str = json.dumps(visible_text, indent=2)
 
             # Ask LLM what to do
+            elements_label = "Accessibility tree" if use_a11y else "Interactive elements on page"
+            a11y_note = (
+                "\n- Elements are shown as [role] \"name\" with ARIA attributes."
+                " Use the name/role to identify elements for click/fill actions."
+                if use_a11y
+                else ""
+            )
             prompt = f"""You are navigating a website to accomplish a goal.
 
 Goal: {goal}
@@ -151,10 +204,10 @@ Parameters: {json.dumps(params) if params else "None"}
 
 Current page:
 - Title: {page_title}
-- URL: {page_url}
+- URL: {page_url}{a11y_note}
 
-Interactive elements on page:
-{json.dumps(visible_text, indent=2)}
+{elements_label}:
+{page_elements_str}
 
 Previous actions taken:
 {json.dumps(history, indent=2)}
@@ -165,6 +218,9 @@ What should I do next? Respond with a JSON object:
 - Use "press" with value like "Enter", "Tab", "Escape" for keyboard actions
 - Use "download" with value as the file URL to download a file
 - Use "scroll" with value as pixels to scroll (default 500)
+- Use "wait" with value as condition: "network-idle", "load", "domcontentloaded", \
+"exists:<selector>", "visible:<selector>", "hidden:<selector>", \
+"url-contains:<text>", "text-contains:<text>", "stable"
 - If the goal is achieved: {{"action": "done", \
 "result": {{"extracted data here"}}, "reason": "why"}}
 - If the goal can't be achieved: {{"action": "fail", \
@@ -200,7 +256,13 @@ Respond with ONLY the JSON object."""
             elif action == "click":
                 selector = instruction.get("selector", "")
                 try:
-                    await page.click(selector, timeout=5000)
+                    from site2cli.browser.retry import with_retry
+
+                    await with_retry(
+                        lambda: page.click(selector, timeout=5000),
+                        retries=config.browser.action_retries,
+                        delay_ms=config.browser.retry_delay_ms,
+                    )
                     await page.wait_for_load_state("networkidle", timeout=5000)
                 except Exception as e:
                     history.append({"step": step, "error": str(e)})
@@ -208,14 +270,26 @@ Respond with ONLY the JSON object."""
                 selector = instruction.get("selector", "")
                 value = instruction.get("value", "")
                 try:
-                    await page.fill(selector, value)
+                    from site2cli.browser.retry import with_retry
+
+                    await with_retry(
+                        lambda: page.fill(selector, value),
+                        retries=config.browser.action_retries,
+                        delay_ms=config.browser.retry_delay_ms,
+                    )
                 except Exception as e:
                     history.append({"step": step, "error": str(e)})
             elif action == "select":
                 selector = instruction.get("selector", "")
                 value = instruction.get("value", "")
                 try:
-                    await page.select_option(selector, value)
+                    from site2cli.browser.retry import with_retry
+
+                    await with_retry(
+                        lambda: page.select_option(selector, value),
+                        retries=config.browser.action_retries,
+                        delay_ms=config.browser.retry_delay_ms,
+                    )
                 except Exception as e:
                     history.append({"step": step, "error": str(e)})
             elif action == "navigate":
@@ -228,7 +302,13 @@ Respond with ONLY the JSON object."""
             elif action == "press":
                 key = instruction.get("value", "Enter")
                 try:
-                    await page.keyboard.press(key)
+                    from site2cli.browser.retry import with_retry
+
+                    await with_retry(
+                        lambda: page.keyboard.press(key),
+                        retries=config.browser.action_retries,
+                        delay_ms=config.browser.retry_delay_ms,
+                    )
                     await page.wait_for_load_state("networkidle", timeout=5000)
                 except Exception as e:
                     history.append({"step": step, "error": str(e)})
@@ -262,7 +342,14 @@ Respond with ONLY the JSON object."""
                 distance = int(instruction.get("value", "500"))
                 await page.evaluate(f"window.scrollBy(0, {distance})")
             elif action == "wait":
-                await page.wait_for_timeout(2000)
+                condition = instruction.get("value", "network-idle")
+                timeout = int(instruction.get("timeout", "5000"))
+                try:
+                    from site2cli.browser.wait import wait_for_condition
+
+                    await wait_for_condition(page, condition, timeout)
+                except ValueError:
+                    await page.wait_for_timeout(2000)
 
         return {
             "result": result_data,
