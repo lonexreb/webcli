@@ -103,7 +103,10 @@ def generate_client_code(spec: dict, class_name: str | None = None) -> str:
 
             # Sort params: required first, then optional (Python syntax rule)
             required_params = [p for p in params if "= None" not in p and "= " not in p]
-            optional_params = [p for p in params if "= None" in p or ("= " in p and p not in required_params)]
+            optional_params = [
+                p for p in params
+                if "= None" in p or ("= " in p and p not in required_params)
+            ]
             params = required_params + optional_params
 
             # Build method body
